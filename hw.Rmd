@@ -1,0 +1,235 @@
+---
+title: "hw"
+author: "Blaire(Moyuan) Li"
+date: "2/6/2017"
+output: html_document
+---
+Code up the generative model (i.e. generate data from) for a Dirichlet process mixture of Gaussians (preferably in R, Matlab, or Python), using a Normal-Inverse Wishart prior on the Gaussian parameters.
+
+What happens as you vary the DP concentration parameter (alpha)? What happens as you vary the Normal-Inverse Wishart hyperparameters? Along with your code, submit plots of your generated data to back up your answers.
+
+```{r}
+library(ggplot2)
+library(NPflow)
+set.seed(100)
+rDPGM = function(n,alpha,hyperG0){
+  theta <- list() # the list that stores the gaussian parameters for each cluster
+  C <- numeric(n) # specifies which cluster that each point belongs to
+  z <- matrix(NA, ncol=n, nrow=d) # stores the generated points
+  
+  for (i in 1:n){
+    p0 <- alpha/(i-1+alpha) #the probability that sits down at a new table
+    u <- runif(n=1, min = 0, max = 1)
+    if (u<p0){
+      # choose a new cluster
+      C[i] <- max(C)+1 
+      theta[[C[i]]] <- rNNiW(hyperG0$NNiW, diagVar=FALSE)
+      theta[[C[i]]][["nu"]] <- 1 + rgamma(n=1, shape = 2, rate=1/10)
+      
+    }else{
+      # choose an exisitng cluster
+      u1 = u-p0
+      weights <- summary(factor(C))[-1] # the N_k for the each cluster except the first cluster
+      C[i] <- which(rmultinom(n=1, size=1, prob=weights)==1)
+    }
+    w <- rgamma(n=1, shape=theta[[C[i]]]$nu/2, rate=theta[[C[i]]]$nu/2)
+    ltnz <- rtruncnorm(n=1, a=0, sd=1/sqrt(w))
+    eps <- matrix(rnorm(d), ncol=d)%*%chol(theta[[C[i]]]$S/w)
+    z[1,i] <- theta[[C[i]]]$xi[1]+theta[[C[i]]]$psi[1]*ltnz+eps[,1]
+    z[2,i] <- theta[[C[i]]]$xi[2]+theta[[C[i]]]$psi[2]*ltnz+eps[,2] 
+  }
+  
+  sim=cbind.data.frame("D1"=z[1,],"D2"=z[2,],"Cluster"=as.factor(C))
+  return(sim)
+}
+
+
+
+#plots with varying alpha 
+d=2
+hyperG0 <- list()
+hyperG0[["NNiW"]] <- list()
+hyperG0[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG0[["NNiW"]][["b_psi"]] <- rep(0,d)
+hyperG0[["NNiW"]][["D_xi"]] <- 100
+hyperG0[["NNiW"]][["D_psi"]] <- 8
+hyperG0[["NNiW"]][["nu"]] <- d+1
+hyperG0[["NNiW"]][["lambda"]] <- diag(c(1,1))
+n= 1000   #number of observations
+sim1 = rDPGM(1000, 1,hyperG0)
+sim2 = rDPGM(1000, 5,hyperG0)
+sim3 = rDPGM(1000, 15,hyperG0)
+sim4 = rDPGM(1000, 30,hyperG0)
+p1 = (ggplot(data=sim1,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p1
+p2 = (ggplot(data=sim2,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p2
+p3 = (ggplot(data=sim3,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p3
+p4 = (ggplot(data=sim4,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p4
+
+```
+
+
+### The points clump together in fewer clusters for low values of alpha, but become more dispersed as alpha increases.
+
+```{r}
+d=2
+hyperG0 <- list()
+hyperG0[["NNiW"]] <- list()
+hyperG0[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG0[["NNiW"]][["b_psi"]] <- rep(0,d)
+hyperG0[["NNiW"]][["D_xi"]] <- 100
+hyperG0[["NNiW"]][["D_psi"]] <- 3
+hyperG0[["NNiW"]][["nu"]] <- d+1
+hyperG0[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+hyperG1 <- list()
+hyperG1[["NNiW"]] <- list()
+hyperG1[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG1[["NNiW"]][["b_psi"]] <- rep(0,d)
+hyperG1[["NNiW"]][["D_xi"]] <- 100
+hyperG1[["NNiW"]][["D_psi"]] <- 16
+hyperG1[["NNiW"]][["nu"]] <- d+1
+hyperG1[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+hyperG2 <- list()
+hyperG2[["NNiW"]] <- list()
+hyperG2[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG2[["NNiW"]][["b_psi"]] <- rep(0,d)
+hyperG2[["NNiW"]][["D_xi"]] <- 100
+hyperG2[["NNiW"]][["D_psi"]] <- 40
+hyperG2[["NNiW"]][["nu"]] <- d+1
+hyperG2[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+
+hyperG3 <- list()
+hyperG3[["NNiW"]] <- list()
+hyperG3[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG3[["NNiW"]][["b_psi"]] <- rep(0,d)
+hyperG3[["NNiW"]][["D_xi"]] <- 100
+hyperG3[["NNiW"]][["D_psi"]] <- 1000
+hyperG3[["NNiW"]][["nu"]] <- d+1
+hyperG3[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+
+
+
+set.seed(200)
+n= 1000   #number of observations
+sim1 = rDPGM(1000, 1,hyperG0)
+sim2 = rDPGM(1000, 1,hyperG1)
+sim3 = rDPGM(1000, 1,hyperG2)
+sim4 = rDPGM(1000, 1,hyperG3)
+p1 = (ggplot(data=sim1,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p1
+p2 = (ggplot(data=sim2,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p2
+p3 = (ggplot(data=sim3,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p3
+p4 = (ggplot(data=sim4,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p4
+
+```
+
+####Increasing D_psi seems to makes shape of the cluster longer and thinner.
+
+```{r}
+d=2
+hyperG0 <- list()
+hyperG0[["NNiW"]] <- list()
+hyperG0[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG0[["NNiW"]][["b_psi"]] <- rep(0,d)
+hyperG0[["NNiW"]][["D_xi"]] <- 100
+hyperG0[["NNiW"]][["D_psi"]] <- 16
+hyperG0[["NNiW"]][["nu"]] <- d+1
+hyperG0[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+hyperG1 <- list()
+hyperG1[["NNiW"]] <- list()
+hyperG1[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG1[["NNiW"]][["b_psi"]] <- rep(3,d)
+hyperG1[["NNiW"]][["D_xi"]] <- 100
+hyperG1[["NNiW"]][["D_psi"]] <- 16
+hyperG1[["NNiW"]][["nu"]] <- d+1
+hyperG1[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+hyperG2 <- list()
+hyperG2[["NNiW"]] <- list()
+hyperG2[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG2[["NNiW"]][["b_psi"]] <- rep(10,d)
+hyperG2[["NNiW"]][["D_xi"]] <- 100
+hyperG2[["NNiW"]][["D_psi"]] <- 16
+hyperG2[["NNiW"]][["nu"]] <- d+1
+hyperG2[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+
+hyperG3 <- list()
+hyperG3[["NNiW"]] <- list()
+hyperG3[["NNiW"]][["b_xi"]] <- rep(0,d)
+hyperG3[["NNiW"]][["b_psi"]] <- rep(100,d)
+hyperG3[["NNiW"]][["D_xi"]] <- 100
+hyperG3[["NNiW"]][["D_psi"]] <- 16
+hyperG3[["NNiW"]][["nu"]] <- d+1
+hyperG3[["NNiW"]][["lambda"]] <- diag(c(1,1))
+
+
+
+
+set.seed(200)
+n= 1000   #number of observations
+sim1 = rDPGM(1000, 1,hyperG0)
+sim2 = rDPGM(1000, 1,hyperG1)
+sim3 = rDPGM(1000, 1,hyperG2)
+sim4 = rDPGM(1000, 1,hyperG3)
+p1 = (ggplot(data=sim1,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p1
+p2 = (ggplot(data=sim2,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p2
+p3 = (ggplot(data=sim3,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p3
+p4 = (ggplot(data=sim4,aes(x=D1, y=D2))
+      + geom_point(aes(colour=Cluster), alpha=0.6)
+      + theme_bw()
+        )
+p4
+
+```
+
+####Increasing the b_psi seems to make the cluster more parallel
+ reference for some codes:
+ https://github.com/borishejblum/NPflow/blob/master/R/rCRP.R
